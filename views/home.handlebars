@@ -1,0 +1,175 @@
+<canvas id="concentration-chart"></canvas>
+<div style="height: 30px;"></div>
+<canvas id="emotions-chart"></canvas>
+<div style="height: 30px;"></div>
+<canvas id="emotions-pie-chart"></canvas>
+
+<script>
+    const emotions = [
+        { name: 'angry', label: 'tức giận', backgroundColor: 'rgba(255, 0, 0, 1)', borderColor: 'rgba(255, 0, 0, 0.5)' },
+        { name: 'disgust', label: 'không thoải mái', backgroundColor: 'rgba(0, 255, 0, 1)', borderColor: 'rgba(0, 255, 0, 0.5)' },
+        { name: 'fear', label: 'sợ hãi', backgroundColor: 'rgba(58, 0, 148, 1)', borderColor: 'rgba(58, 0, 148, 0.5)' },
+        { name: 'happy', label: 'vui', backgroundColor: 'rgba(255, 226, 0, 1)', borderColor: 'rgba(255, 226, 0, 0.5)' },
+        { name: 'sad', label: 'buồn', backgroundColor: 'rgba(0, 60, 255, 1)', borderColor: 'rgba(0, 111, 255, 0.5)' },
+        { name: 'surprise', label: 'ngạc nhiên', backgroundColor: 'rgba(255, 0, 255, 1)', borderColor: 'rgba(255, 0, 255, 0.5)' },
+        { name: 'neutral', label: 'bình thường', backgroundColor: 'rgba(111, 111, 111, 1)', borderColor: 'rgba(111, 111, 111, 0.5)' }
+    ];
+
+    function computeRatio() {
+        const width = $(window).width();
+        const height = $(window).height();
+        const ratio = width / height;
+        if (ratio > 1) return 4;
+        return 1;
+    }
+
+    function computePieRatio() {
+        const width = $(window).width();
+        const height = $(window).height();
+        const ratio = width / height;
+        if (ratio > 1) return 2;
+        return 1;
+    }
+
+    function formatConcentration(item) {
+        return {
+            t: item.detected_at,
+            y: item.concentration
+        };
+    }
+
+    function formatEmotion(item, emotion) {
+        return {
+            t: item.detected_at,
+            y: item[emotion]
+        }
+    }
+
+    function formatEmotionPie(data, emotion) {
+        return data.reduce((prev, cur) => prev + cur[emotion], 0);
+    }
+
+    function genEmotionsDatasets(data) {
+        return emotions.map(emotion => {
+            return {
+                label: emotion.label,
+                borderColor: emotion.borderColor,
+                pointRadius: 0,
+                fill: false,
+                data: data.map(item => formatEmotion(item, emotion.name))
+            };
+        });
+    }
+
+    const limit = 0;
+    $.getJSON(`/emotions?limit=${limit}`, rawData => {
+        const concentrationConfig = {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'chỉ số tập trung',
+                    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+                    borderColor: 'rgba(255, 0, 0, 0.5)',
+                    pointRadius: 0,
+                    fill: true,
+                    data: rawData.map(formatConcentration)
+                }]
+            },
+            options: {
+                responsive: true,
+                aspectRatio: computeRatio(),
+                devicePixelRatio: 2,
+                title: {
+                    display: true,
+                    text: 'Độ tập trung'
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'thời gian'
+                        },
+                        ticks: {
+                            source: 'auto',
+                            autoSkip: true
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'chỉ số tập trung'
+                        },
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        };
+        const concentrationChart = new Chart($('#concentration-chart'), concentrationConfig);
+
+        const emotionsConfig = {
+            type: 'line',
+            data: {
+                datasets: genEmotionsDatasets(rawData)
+            },
+            options: {
+                responsive: true,
+                aspectRatio: computeRatio(),
+                devicePixelRatio: 2,
+                title: {
+                    display: true,
+                    text: 'Cảm xúc'
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'thời gian'
+                        },
+                        ticks: {
+                            source: 'auto',
+                            autoSkip: true
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'số lượng học viên'
+                        }
+                    }]
+                }
+            }
+        };
+        const emotionsChart = new Chart($('#emotions-chart'), emotionsConfig);
+    });
+
+    $.getJSON('/emotions', rawData => {
+        const emotionsPieConfig = {
+            type: 'pie',
+            data: {
+                datasets: [{
+                    data: emotions.map(emotion => formatEmotionPie(rawData, emotion.name)),
+                    backgroundColor: emotions.map(emotion => emotion.borderColor)
+                }],
+                labels: emotions.map(emotion => emotion.label)
+            },
+            options: {
+                responsive: true,
+                aspectRatio: computePieRatio(),
+                devicePixelRatio: 2,
+                title: {
+                    display: true,
+                    text: 'Tỉ lệ các cảm xúc'
+                }
+            }
+        };
+        const emotionsPieChart = new Chart($('#emotions-pie-chart'), emotionsPieConfig);
+    });
+</script>
